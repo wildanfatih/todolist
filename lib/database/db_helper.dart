@@ -1,73 +1,136 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'package:flutter/material.dart';
+import 'database/db_helper.dart';
+import 'main.dart'; // Pastikan TodoScreen ada di sini
 
-class DBHelper {
-  static Future<Database> initDB() async {
-    final path = await getDatabasesPath();
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
-    return openDatabase(
-      join(path, 'todo.db'),
-      version: 1,
-      onCreate: (db, version) async {
-        // TABEL TASK
-        await db.execute(
-          'CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, done INTEGER)',
-        );
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
-        // TABEL USER
-        await db.execute(
-          'CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)',
-        );
-      },
+class _LoginScreenState extends State<LoginScreen> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+  bool isObscure = true;
+
+  void login() async {
+    if (username.text.isEmpty || password.text.isEmpty) {
+      showSnackBar("Isi username & password!");
+      return;
+    }
+
+    // 🔥 PERUBAHAN DISINI: Sekarang menangkap int? userId
+    int? userId = await DBHelper.login(username.text, password.text);
+
+    if (userId != null) {
+      if (!mounted) return;
+
+      // 🔥 KIRIM userId ke TodoScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TodoScreen(userId: userId),
+        ),
+      );
+    } else {
+      showSnackBar("Username atau Password salah!");
+    }
+  }
+
+  void register() async {
+    if (username.text.isEmpty || password.text.isEmpty) {
+      showSnackBar("Lengkapi data daftar");
+      return;
+    }
+    await DBHelper.register(username.text, password.text);
+    showSnackBar("Berhasil daftar! Silakan login.");
+    username.clear();
+    password.clear();
+  }
+
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
-  // ================= USER =================
-
-  static Future<void> register(String username, String password) async {
-    final db = await initDB();
-    await db.insert('users', {
-      'username': username,
-      'password': password,
-    });
-  }
-
-  static Future<bool> login(String username, String password) async {
-    final db = await initDB();
-
-    final result = await db.query(
-      'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, password],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // --- HEADER ---
+            Container(
+              height: 250,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(colors: [Colors.indigo, Colors.blueAccent]),
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(80)),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_person, size: 70, color: Colors.white),
+                  SizedBox(height: 10),
+                  Text("Welcome Back", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            // --- FORM ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: username,
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      prefixIcon: const Icon(Icons.person),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: password,
+                    obscureText: isObscure,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(isObscure ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => isObscure = !isObscure),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: login,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      child: const Text("LOGIN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  TextButton(onPressed: register, child: const Text("Belum punya akun? Daftar")),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-
-    return result.isNotEmpty;
-  }
-
-  // ================= TASK =================
-
-  static Future<void> insertTask(String title) async {
-    final db = await initDB();
-    await db.insert('tasks', {'title': title, 'done': 0});
-  }
-
-  static Future<List<Map<String, dynamic>>> getTasks() async {
-    final db = await initDB();
-    return db.query('tasks');
-  }
-
-  static Future<void> updateTask(int id, int done) async {
-    final db = await initDB();
-    await db.update(
-      'tasks',
-      {'done': done},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  static Future<void> deleteTask(int id) async {
-    final db = await initDB();
-    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 }

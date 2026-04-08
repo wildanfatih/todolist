@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database/db_helper.dart';
-import 'main.dart';
+import 'main.dart'; // Untuk navigasi ke TodoScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,103 +12,182 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final username = TextEditingController();
   final password = TextEditingController();
+  bool isObscure = true; // Untuk toggle lihat password
 
   void login() async {
-    print("LOGIN DIPENCET");
-
-    // 🔥 VALIDASI
     if (username.text.isEmpty || password.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Isi username & password")),
-      );
+      showSnackBar("Isi username & password dulu ya!");
       return;
     }
 
-    bool success = await DBHelper.login(
-      username.text,
-      password.text,
-    );
-
-    print("HASIL LOGIN: $success");
+    bool success = await DBHelper.login(username.text, password.text);
 
     if (success) {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const TodoScreen()),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login gagal")),
-      );
+      showSnackBar("Username atau Password salah!");
     }
   }
 
   void register() async {
-    print("REGISTER DIPENCET");
-
-    // 🔥 VALIDASI
     if (username.text.isEmpty || password.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Isi username & password")),
-      );
+      showSnackBar("Isi semua data untuk daftar");
       return;
     }
 
     await DBHelper.register(username.text, password.text);
-
-    print("REGISTER BERHASIL");
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Register berhasil")),
-    );
-
-    // 🔥 BONUS: auto clear
+    showSnackBar("Berhasil terdaftar! Silakan login.");
     username.clear();
     password.clear();
+  }
+
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
-      body: SingleChildScrollView( // 🔥 penting biar ga error overflow
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              TextField(
-                controller: username,
-                decoration: const InputDecoration(
-                  labelText: "Username",
-                  border: OutlineInputBorder(),
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // --- HEADER GRADIENT ---
+            Container(
+              height: 300,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.indigo, Colors.blueAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(80),
                 ),
               ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: password,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.task_alt, size: 80, color: Colors.white),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "To-Do Pro",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "Manage your tasks elegantly",
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+            ),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: login,
-                  child: const Text("Login"),
-                ),
-              ),
+            const SizedBox(height: 40),
 
-              TextButton(
-                onPressed: register,
-                child: const Text("Register"),
+            // --- FORM LOGIN ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                children: [
+                  // Field Username
+                  TextField(
+                    controller: username,
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Field Password
+                  TextField(
+                    controller: password,
+                    obscureText: isObscure,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(isObscure ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => isObscure = !isObscure),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Tombol Login
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: login,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 5,
+                      ),
+                      child: const Text(
+                        "Login",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // Tombol Register
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Belum punya akun?"),
+                      TextButton(
+                        onPressed: register,
+                        child: const Text(
+                          "Daftar Sekarang",
+                          style: TextStyle(
+                            color: Colors.indigo,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
