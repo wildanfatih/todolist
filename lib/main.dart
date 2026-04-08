@@ -3,12 +3,8 @@ import 'database/db_helper.dart';
 import 'login_screen.dart';
 
 void main() async {
-  // Pastikan plugin internal Flutter siap sebelum database jalan
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Inisialisasi database SQLite
   await DBHelper.initDB();
-
   runApp(const MyApp());
 }
 
@@ -21,18 +17,20 @@ class MyApp extends StatelessWidget {
       title: 'To-Do Pro',
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.indigo, // Tema warna dasar
+        colorSchemeSeed: Colors.indigo,
       ),
-      // Jalankan LoginScreen dulu sesuai kodemu sebelumnya
+      // Aplikasi pertama kali buka akan masuk ke LoginScreen
       home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-// --- Tampilan TodoScreen yang sudah di-upgrade ---
+// --- Tampilan TodoScreen yang sudah pakai ID User ---
 class TodoScreen extends StatefulWidget {
-  const TodoScreen({super.key});
+  final int userId; // Menerima ID dari LoginScreen
+
+  const TodoScreen({super.key, required this.userId});
 
   @override
   State<TodoScreen> createState() => _TodoScreenState();
@@ -48,13 +46,15 @@ class _TodoScreenState extends State<TodoScreen> {
     loadTasks();
   }
 
+  // 1. Ambil tugas HANYA MILIK user yang sedang login
   void loadTasks() async {
-    final data = await DBHelper.getTasks();
+    final data = await DBHelper.getTasks(widget.userId);
     setState(() {
       tasks = data;
     });
   }
 
+  // Desain pop-up dari bawah untuk tambah tugas
   void showAddTaskSheet() {
     showModalBottomSheet(
       context: context,
@@ -97,7 +97,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 ),
                 onPressed: () {
                   addTask();
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Tutup pop-up setelah simpan
                 },
                 child: const Text("Simpan Tugas", style: TextStyle(color: Colors.white)),
               ),
@@ -109,18 +109,21 @@ class _TodoScreenState extends State<TodoScreen> {
     );
   }
 
+  // 2. Simpan tugas DENGAN MENYERTAKAN label pemilknya (userId)
   void addTask() async {
     if (controller.text.isEmpty) return;
-    await DBHelper.insertTask(controller.text);
+    await DBHelper.insertTask(controller.text, widget.userId);
     controller.clear();
     loadTasks();
   }
 
+  // 3. Update status selesai/belum
   void toggleTask(int id, int done) async {
     await DBHelper.updateTask(id, done == 0 ? 1 : 0);
     loadTasks();
   }
 
+  // 4. Hapus tugas
   void deleteTask(int id) async {
     await DBHelper.deleteTask(id);
     loadTasks();
@@ -129,83 +132,36 @@ class _TodoScreenState extends State<TodoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text("My Daily Tasks",
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.indigo,
-        onPressed: showAddTaskSheet,
-        child: const Icon(Icons.add, size: 30, color: Colors.white),
-      ),
-
-      body: tasks.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.assignment_turned_in_outlined, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 10),
-            Text("Belum ada tugas. Santai dulu!",
-                style: TextStyle(color: Colors.grey[500])),
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          title: const Text("My Daily Tasks", style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          actions: [
+            // TOMBOL LOGOUT KITA TARUH DI SINI
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.redAccent),
+              tooltip: 'Logout',
+              onPressed: () {
+                // Hapus semua rute sebelumnya dan kembali ke Login
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                );
+              },
+            )
           ],
         ),
-      )
-          : ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        itemCount: tasks.length,
-        itemBuilder: (context, i) {
-          final task = tasks[i];
-          final bool isDone = task['done'] == 1;
 
-          return Dismissible(
-            key: Key(task['id'].toString()),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            onDismissed: (_) => deleteTask(task['id']),
-            child: Card(
-              elevation: 2,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                leading: IconButton(
-                  icon: Icon(
-                    isDone ? Icons.check_circle : Icons.circle_outlined,
-                    color: isDone ? Colors.green : Colors.grey,
-                    size: 28,
-                  ),
-                  onPressed: () => toggleTask(task['id'], task['done']),
-                ),
-                title: Text(
-                  task['title'],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                    color: isDone ? Colors.grey : Colors.black87,
-                  ),
-                ),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: Colors.indigo,
+          onPressed: showAddTaskSheet,
+          child: const Icon(Icons.add, size: 30, color: Colors.white),
+        ),
+
+        body: tasks.isEmpty
+            ? Center(
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+              Icon(Icons.assignment_turned_in_outlined, size: 80, color: Colors.grey[300]),
