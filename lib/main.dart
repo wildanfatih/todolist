@@ -1,167 +1,87 @@
-import 'package:flutter/material.dart';
-import 'database/db_helper.dart';
-import 'login_screen.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await DBHelper.initDB();
-  runApp(const MyApp());
-}
+class DBHelper {
+  static Future<Database> initDB() async {
+    final path = await getDatabasesPath();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+    return openDatabase(
+      join(path, 'todo_v2.db'), // Ganti nama db jadi v2 agar tabel ter-refresh
+      version: 1,
+      onCreate: (db, version) async {
+        // TABEL USER
+        await db.execute(
+          'CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)',
+        );
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'To-Do Pro',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-      ),
-      // Aplikasi pertama kali buka akan masuk ke LoginScreen
-      home: const LoginScreen(),
-      debugShowCheckedModeBanner: false,
+        // TABEL TASK (Sekarang pakai userId sebagai label pemilik)
+        await db.execute(
+          'CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, done INTEGER, userId INTEGER)',
+        );
+      },
     );
   }
-}
 
-// --- Tampilan TodoScreen yang sudah pakai ID User ---
-class TodoScreen extends StatefulWidget {
-  final int userId; // Menerima ID dari LoginScreen
+  // ================= USER =================
 
-  const TodoScreen({super.key, required this.userId});
-
-  @override
-  State<TodoScreen> createState() => _TodoScreenState();
-}
-
-class _TodoScreenState extends State<TodoScreen> {
-  List<Map<String, dynamic>> tasks = [];
-  final controller = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    loadTasks();
-  }
-
-  // 1. Ambil tugas HANYA MILIK user yang sedang login
-  void loadTasks() async {
-    final data = await DBHelper.getTasks(widget.userId);
-    setState(() {
-      tasks = data;
+  static Future<void> register(String username, String password) async {
+    final db = await initDB();
+    await db.insert('users', {
+      'username': username,
+      'password': password,
     });
   }
 
-  // Desain pop-up dari bawah untuk tambah tugas
-  void showAddTaskSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20, left: 20, right: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Tambah Tugas Baru",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 15),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: "Apa rencana kamu hari ini?",
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                onPressed: () {
-                  addTask();
-                  Navigator.pop(context); // Tutup pop-up setelah simpan
-                },
-                child: const Text("Simpan Tugas", style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
+  // UBAH: Sekarang return int? (ID User) bukan bool
+  static Future<int?> login(String username, String password) async {
+    final db = await initDB();
+
+    final result = await db.query(
+      'users',
+      where: 'username = ? AND password = ?',
+      whereArgs: [username, password],
+    );
+
+    if (result.isNotEmpty) {
+      return result.first['id'] as int; // Ambil ID user pertama yang ditemukan
+    }
+    return null; // Return null kalau gagal login
+  }
+
+  // ================= TASK =================
+
+  // UBAH: Tambah parameter userId saat simpan tugas
+  static Future<void> insertTask(String title, int userId) async {
+    final db = await initDB();
+    await db.insert('tasks', {
+      'title': title,
+      'done': 0,
+      'userId': userId // Labeli tugas ini milik siapa
+    });
+  }
+
+  // UBAH: Hanya ambil tugas yang userId-nya cocok
+  static Future<List<Map<String, dynamic>>> getTasks(int userId) async {
+    final db = await initDB();
+    return db.query(
+        'tasks',
+        where: 'userId = ?',
+        whereArgs: [userId]
     );
   }
 
-  // 2. Simpan tugas DENGAN MENYERTAKAN label pemilknya (userId)
-  void addTask() async {
-    if (controller.text.isEmpty) return;
-    await DBHelper.insertTask(controller.text, widget.userId);
-    controller.clear();
-    loadTasks();
+  static Future<void> updateTask(int id, int done) async {
+    final db = await initDB();
+    await db.update(
+      'tasks',
+      {'done': done},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
-  // 3. Update status selesai/belum
-  void toggleTask(int id, int done) async {
-    await DBHelper.updateTask(id, done == 0 ? 1 : 0);
-    loadTasks();
+  static Future<void> deleteTask(int id) async {
+    final db = await initDB();
+    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
-
-  // 4. Hapus tugas
-  void deleteTask(int id) async {
-    await DBHelper.deleteTask(id);
-    loadTasks();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-          title: const Text("My Daily Tasks", style: TextStyle(fontWeight: FontWeight.bold)),
-          centerTitle: true,
-          actions: [
-            // TOMBOL LOGOUT KITA TARUH DI SINI
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.redAccent),
-              tooltip: 'Logout',
-              onPressed: () {
-                // Hapus semua rute sebelumnya dan kembali ke Login
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                );
-              },
-            )
-          ],
-        ),
-
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: Colors.indigo,
-          onPressed: showAddTaskSheet,
-          child: const Icon(Icons.add, size: 30, color: Colors.white),
-        ),
-
-        body: tasks.isEmpty
-            ? Center(
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-              Icon(Icons.assignment_turned_in_outlined, size: 80, color: Colors.grey[300]),
+}
