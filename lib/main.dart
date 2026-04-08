@@ -122,7 +122,7 @@ class _TodoScreenState extends State<TodoScreen> {
             StatefulBuilder(
                 builder: (BuildContext context, StateSetter setModalState) {
                   return DropdownButtonFormField<String>(
-                    value: selectedCategory,
+                    initialValue: selectedCategory,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey[100],
