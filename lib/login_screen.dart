@@ -14,10 +14,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final password = TextEditingController();
 
   void login() async {
+    print("LOGIN DIPENCET");
+
+    // 🔥 VALIDASI
+    if (username.text.isEmpty || password.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Isi username & password")),
+      );
+      return;
+    }
+
     bool success = await DBHelper.login(
       username.text,
       password.text,
     );
+
+    print("HASIL LOGIN: $success");
 
     if (success) {
       Navigator.pushReplacement(
@@ -32,42 +44,71 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void register() async {
+    print("REGISTER DIPENCET");
+
+    // 🔥 VALIDASI
+    if (username.text.isEmpty || password.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Isi username & password")),
+      );
+      return;
+    }
+
     await DBHelper.register(username.text, password.text);
+
+    print("REGISTER BERHASIL");
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Register berhasil")),
     );
+
+    // 🔥 BONUS: auto clear
+    username.clear();
+    password.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Login")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: username,
-              decoration: const InputDecoration(labelText: "Username"),
-            ),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Password"),
-            ),
-            const SizedBox(height: 20),
+      body: SingleChildScrollView( // 🔥 penting biar ga error overflow
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              TextField(
+                controller: username,
+                decoration: const InputDecoration(
+                  labelText: "Username",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
 
-            ElevatedButton(
-              onPressed: login,
-              child: const Text("Login"),
-            ),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
 
-            TextButton(
-              onPressed: register,
-              child: const Text("Register"),
-            ),
-          ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: login,
+                  child: const Text("Login"),
+                ),
+              ),
+
+              TextButton(
+                onPressed: register,
+                child: const Text("Register"),
+              ),
+            ],
+          ),
         ),
       ),
     );

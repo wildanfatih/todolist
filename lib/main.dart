@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'database/db_helper.dart';
 import 'login_screen.dart'; 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // ⬅️ WAJIB
+  await DBHelper.initDB(); // ⬅️ WAJIB
   runApp(const MyApp());
 }
 
