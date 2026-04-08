@@ -1,3 +1,4 @@
+import 'session_helper.dart';
 import 'package:flutter/material.dart';
 import 'database/db_helper.dart';
 import 'main.dart'; // Pastikan TodoScreen ada di main.dart
@@ -15,20 +16,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isObscure = true;
 
   void login() async {
-    // 🔥 1. Validasi Input Kosong
     if (username.text.isEmpty || password.text.isEmpty) {
       showSnackBar("Isi username & password dulu ya!");
       return;
     }
 
-    // 🔥 2. Cek Login ke Database (Sekarang menghasilkan int? / ID User)
+    // Await pertama
     int? userId = await DBHelper.login(username.text, password.text);
 
-    // 🔥 3. Jika berhasil login (ID tidak null)
     if (userId != null) {
-      if (!mounted) return;
+      // Await kedua
+      await SessionHelper.saveSession(userId);
 
-      // Pindah ke TodoScreen dan bawa "ID User"-nya
+      // Cek context sebelum pindah layar
+      if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -36,23 +37,26 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      // Jika gagal login (ID null)
+      // 🔥 Nah, di sini juga butuh perlindungan, karena showSnackBar pakai context!
+      if (!context.mounted) return;
       showSnackBar("Username atau Password salah!");
     }
   }
 
   void register() async {
-    // 🔥 Validasi Input Kosong
     if (username.text.isEmpty || password.text.isEmpty) {
       showSnackBar("Lengkapi data untuk mendaftar");
       return;
     }
 
-    // Simpan ke database
+    // Await database
     await DBHelper.register(username.text, password.text);
+
+    // 🔥 Di sini juga wajib dicek sebelum nampilin SnackBar
+    if (!context.mounted) return;
+
     showSnackBar("Berhasil terdaftar! Silakan login.");
 
-    // Bersihkan kolom input setelah daftar
     username.clear();
     password.clear();
   }
