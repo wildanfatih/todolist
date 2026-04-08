@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database/db_helper.dart';
-import 'main.dart'; // Untuk navigasi ke TodoScreen
+import 'main.dart'; // Pastikan TodoScreen ada di main.dart
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,39 +12,52 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final username = TextEditingController();
   final password = TextEditingController();
-  bool isObscure = true; // Untuk toggle lihat password
+  bool isObscure = true;
 
   void login() async {
+    // 🔥 1. Validasi Input Kosong
     if (username.text.isEmpty || password.text.isEmpty) {
       showSnackBar("Isi username & password dulu ya!");
       return;
     }
 
-    bool success = await DBHelper.login(username.text, password.text);
+    // 🔥 2. Cek Login ke Database (Sekarang menghasilkan int? / ID User)
+    int? userId = await DBHelper.login(username.text, password.text);
 
-    if (success) {
+    // 🔥 3. Jika berhasil login (ID tidak null)
+    if (userId != null) {
       if (!mounted) return;
+
+      // Pindah ke TodoScreen dan bawa "ID User"-nya
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const TodoScreen()),
+        MaterialPageRoute(
+          builder: (_) => TodoScreen(userId: userId),
+        ),
       );
     } else {
+      // Jika gagal login (ID null)
       showSnackBar("Username atau Password salah!");
     }
   }
 
   void register() async {
+    // 🔥 Validasi Input Kosong
     if (username.text.isEmpty || password.text.isEmpty) {
-      showSnackBar("Isi semua data untuk daftar");
+      showSnackBar("Lengkapi data untuk mendaftar");
       return;
     }
 
+    // Simpan ke database
     await DBHelper.register(username.text, password.text);
     showSnackBar("Berhasil terdaftar! Silakan login.");
+
+    // Bersihkan kolom input setelah daftar
     username.clear();
     password.clear();
   }
 
+  // Fungsi bantuan untuk memunculkan pesan pop-up di bawah
   void showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -58,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8F9FA), // Warna background soft
       body: SingleChildScrollView(
         child: Column(
           children: [
