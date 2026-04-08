@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   Text(
                     "Manage your tasks elegantly",
-                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                    style: TextStyle(color: Colors.white.withAlpha(204)),
                   ),
                 ],
               ),
