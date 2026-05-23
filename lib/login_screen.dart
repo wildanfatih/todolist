@@ -1,7 +1,7 @@
 import 'session_helper.dart';
 import 'package:flutter/material.dart';
 import 'database/db_helper.dart';
-import 'main.dart'; // Pastikan TodoScreen ada di main.dart
+import 'todo_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,14 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Await pertama
     int? userId = await DBHelper.login(username.text, password.text);
 
     if (userId != null) {
-      // Await kedua
+
       await SessionHelper.saveSession(userId);
 
-      // Cek context sebelum pindah layar
+
       if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
@@ -37,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      // 🔥 Nah, di sini juga butuh perlindungan, karena showSnackBar pakai context!
+
       if (!context.mounted) return;
       showSnackBar("Username atau Password salah!");
     }
@@ -49,10 +48,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Await database
+
     await DBHelper.register(username.text, password.text);
 
-    // 🔥 Di sini juga wajib dicek sebelum nampilin SnackBar
+
     if (!context.mounted) return;
 
     showSnackBar("Berhasil terdaftar! Silakan login.");
@@ -61,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
     password.clear();
   }
 
-  // Fungsi bantuan untuk memunculkan pesan pop-up di bawah
+
   void showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -75,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Warna background soft
+      backgroundColor: const Color(0xFFF8F9FA),
       body: SingleChildScrollView(
         child: Column(
           children: [

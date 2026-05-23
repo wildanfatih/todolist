@@ -1,21 +1,23 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'dart:convert'; // 🔥 Tambahan untuk konversi teks
-import 'package:crypto/crypto.dart'; // 🔥 Tambahan untuk SHA-256
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class DBHelper {
   static Future<Database> initDB() async {
     final path = await getDatabasesPath();
 
     return openDatabase(
-      join(path, 'todo_v5.db'), // 🔥 GANTI KE v5 (Database Final!)
+      // 1. Nama database dinaikkan ke v6 agar tabelnya otomatis diperbarui di HP/Emulator
+      join(path, 'todo_v6.db'),
       version: 1,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)',
         );
+        // 2. Di sini kita tambahkan kolom due_date dan due_time
         await db.execute(
-          'CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, done INTEGER, userId INTEGER, created_at TEXT, category TEXT)',
+          'CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, done INTEGER, userId INTEGER, created_at TEXT, category TEXT, due_date TEXT, due_time TEXT)',
         );
       },
     );
@@ -23,18 +25,17 @@ class DBHelper {
 
   // ================= KEAMANAN LEVEL PRO =================
 
-  // 🔥 FUNGSI RAHASIA UNTUK MENGACAK PASSWORD
   static String _hashPassword(String password) {
-    var bytes = utf8.encode(password); // Ubah teks jadi byte
-    var digest = sha256.convert(bytes); // Acak pakai SHA-256
-    return digest.toString(); // Kembalikan jadi teks acak
+    var bytes = utf8.encode(password);
+    var digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   static Future<void> register(String username, String password) async {
     final db = await initDB();
     await db.insert('users', {
       'username': username,
-      'password': _hashPassword(password) // 🔥 Simpan password yang SUDAH DIACAK
+      'password': _hashPassword(password)
     });
   }
 
@@ -43,7 +44,6 @@ class DBHelper {
     final result = await db.query(
       'users',
       where: 'username = ? AND password = ?',
-      // 🔥 Cek database menggunakan password inputan yang diacak juga
       whereArgs: [username, _hashPassword(password)],
     );
     if (result.isNotEmpty) return result.first['id'] as int;
@@ -52,7 +52,8 @@ class DBHelper {
 
   // ================= MANAJEMEN TUGAS =================
 
-  static Future<void> insertTask(String title, int userId, String category) async {
+  // 3. Fungsi insertTask sekarang menerima parameter dueDate dan dueTime tambahan
+  static Future<void> insertTask(String title, int userId, String category, String dueDate, String dueTime) async {
     final db = await initDB();
     String currentTime = DateTime.now().toString();
 
@@ -61,7 +62,9 @@ class DBHelper {
       'done': 0,
       'userId': userId,
       'created_at': currentTime,
-      'category': category
+      'category': category,
+      'due_date': dueDate,   // Menyimpan tanggal target (YYYY-MM-DD)
+      'due_time': dueTime    // Menyimpan jam alarm (HH:MM)
     });
   }
 
